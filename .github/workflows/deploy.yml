@@ -1,0 +1,43 @@
+name: Deploy Application to Production
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set Up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '24'
+
+      - name: Install NPM Dependencies
+        run: npm install
+
+      - name: Build the NPM Assets
+        run: npm run build
+
+#      - name: Sync to Server
+#        uses: easingthemes/ssh-deploy@v2.1.5
+#        env:
+#          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+#          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+#          REMOTE_USER: ${{ secrets.REMOTE_USER }}
+#          TARGET: /home/richard/auth-service-api
+
+#      - name: Run Remote Deployment Commands
+#        uses: appleboy/ssh-action@v0.1.7
+#        with:
+#          key: ${{ secrets.SSH_PRIVATE_KEY }}
+#          host: ${{ secrets.REMOTE_HOST }}
+#          username: ${{ secrets.REMOTE_USER }}
+#          script: |
+#            cd /home/richard/auth-service-api
+#            npm run deploy

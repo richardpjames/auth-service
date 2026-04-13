@@ -12,6 +12,8 @@ import router from './routes/routes.js';
 const app = express();
 // Add helmet
 app.use(helmet());
+// Allow the ingestion of json
+app.use(express.json());
 
 // Add our application routes
 app.use(router);
