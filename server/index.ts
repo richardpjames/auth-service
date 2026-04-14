@@ -1,5 +1,9 @@
 // Start with using express for our web server
-import express, { type Request, type Response } from 'express';
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from 'express';
 import cookieParser from 'cookie-parser';
 // Read configuration from .env files
 import 'dotenv/config';
@@ -19,6 +23,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 // Allow working with cookies
 app.use(cookieParser());
+
+// Allow our /api routes to work
+app.use((req: Request, res: Response, next: NextFunction) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; form-action 'self' https://auth.richardpjames.com",
+  );
+  next();
+});
 
 // Add our application routes
 app.use(router);
