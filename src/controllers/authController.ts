@@ -12,14 +12,26 @@ export async function login(req: Request, res: Response): Promise<void> {
   const user = await prisma.user.findUnique({ where: { email } });
   // If not then give a generic error message
   if (!user) {
-    res.status(401).send({ message: 'Incorrect Username or Password.' });
+    const loginUrl = new URL(`${process.env.REACT_URL}/login` || '/');
+    loginUrl.searchParams.set('error', 'Incorrect Username or Password.');
+    loginUrl.searchParams.set('email', email);
+    loginUrl.searchParams.set('client_id', client_id);
+    loginUrl.searchParams.set('redirect_uri', redirect_uri);
+    loginUrl.searchParams.set('state', state);
+    res.redirect(loginUrl.toString());
     return;
   }
   // If we have a user then check the password
   const passwordOk = await argon2.verify(user.passwordHash, password);
   // If that's not okay then give the same error message
   if (!passwordOk) {
-    res.status(401).send({ message: 'Incorrect Username or Password.' });
+    const loginUrl = new URL(`${process.env.REACT_URL}/login` || '/');
+    loginUrl.searchParams.set('error', 'Incorrect Username or Password.');
+    loginUrl.searchParams.set('email', email);
+    loginUrl.searchParams.set('client_id', client_id);
+    loginUrl.searchParams.set('redirect_uri', redirect_uri);
+    state && loginUrl.searchParams.set('state', state);
+    res.redirect(loginUrl.toString());
     return;
   }
   // If the username and password are okay then we can create a session
@@ -195,6 +207,12 @@ export async function token(req: Request, res: Response): Promise<void> {
     authCode.expiresAt.getTime() < Date.now() ||
     authCode.clientApp.clientId !== client_id
   ) {
+    console.log(authCode);
+    if (authCode) {
+      console.log(authCode.usedAt);
+      console.log(authCode.expiresAt.getTime() < Date.now());
+      console.log(authCode.clientApp.clientId !== client_id);
+    }
     res.status(400).json({ message: 'Invalid Grant' });
     return;
   }

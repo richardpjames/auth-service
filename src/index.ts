@@ -15,6 +15,8 @@ const app = express();
 app.use(helmet());
 // Allow the ingestion of json
 app.use(express.json());
+// Allow the ingestion of form data
+app.use(express.urlencoded({ extended: true }));
 // Allow working with cookies
 app.use(cookieParser());
 
