@@ -87,11 +87,19 @@ export async function authorize(req: Request, res: Response) {
 
   // We only support the code response type in this application
   if (response_type !== 'code') {
-    return res.status(400).send('Only response_type=code is supported');
+    return res
+      .status(400)
+      .send({ message: 'Only response_type=code is supported' });
   }
   // Check that a scope has been provided which includes openid
   if (!scope || !String(scope).split(' ').includes('openid')) {
-    return res.status(400).send('Missing openid scope');
+    return res.status(400).send({ message: 'Missing openid scope' });
+  }
+
+  // Make sure required OAuth params are present
+  if (!client_id || !redirect_uri) {
+    res.status(400).send({ message: 'Missing client_id or redirect_uri' });
+    return;
   }
 
   // Get the client from the database
@@ -101,7 +109,7 @@ export async function authorize(req: Request, res: Response) {
 
   // And check that it exists with a matching return uri
   if (!client || client.redirectUri !== redirect_uri) {
-    return res.status(400).send('Invalid client');
+    return res.status(400).send({ message: 'Invalid client' });
   }
 
   var session = null;
