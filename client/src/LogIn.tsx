@@ -1,16 +1,18 @@
-import { Link, useLocation, useSearchParams } from "react-router";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import SuccessMessage from "./components/SuccessMessage";
-import TextInput from "./components/TextInput";
-import z from "zod";
-import ErrorMessage from "./components/ErrorMessage";
+import { Link, useLocation, useSearchParams } from 'react-router';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import SuccessMessage from './components/SuccessMessage';
+import TextInput from './components/TextInput';
+import z from 'zod';
+import ErrorMessage from './components/ErrorMessage';
+import { useState } from 'react';
+import axios from 'axios';
 
 const LogInPage = () => {
   // Describe the valid format for a login form
   const loginSchema = z.object({
-    email: z.email("Please provide a valid email address"),
-    password: z.string().min(1, "Please provide your password"),
+    email: z.email('Please provide a valid email address'),
+    password: z.string().min(1, 'Please provide your password'),
   });
 
   // Infer the layout of our form from the zod schema
@@ -26,48 +28,49 @@ const LogInPage = () => {
   const [searchParams] = useSearchParams();
 
   // Used for the display of more generic errors (identified server side)
-  const queryStringError = searchParams.get("error");
+  const [serverError, setServerError] = useState('');
 
   // The logic for handling the submit of the form
   const onSubmit = async (data: LoginForm) => {
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = "/api/login";
+    setServerError('');
 
-    const fields: Record<string, string> = {
-      email: data.email,
-      password: data.password,
-      client_id: searchParams.get("client_id") ?? "",
-      redirect_uri: searchParams.get("redirect_uri") ?? "",
-      state: searchParams.get("state") ?? "",
-    };
-
-    for (const [name, value] of Object.entries(fields)) {
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = name;
-      input.value = value;
-      form.appendChild(input);
+    try {
+      const response = await axios.post('/api/login', {
+        ...data,
+        client_id: searchParams.get('client_id'),
+        redirect_uri: searchParams.get('redirect_uri'),
+        state: searchParams.get('state'),
+      });
+      // We have to do the redirection as a browser level action (not through the API)
+      window.location.href = response.data.redirectTo;
+      // Catch any errors
+    } catch (error: unknown) {
+      // Look for any specific axios errors which have a string message
+      if (axios.isAxiosError<{ message?: string }>(error)) {
+        setServerError(
+          error.response?.data?.message ?? 'An unexpected error has occurred.',
+        );
+        return;
+      }
+      // If we get another type of error then just put out a generic error message
+      setServerError('An unexpected error has occurred.');
     }
-
-    document.body.appendChild(form);
-    form.submit();
   };
 
   // Define the fields in the form so they can be rendered with components later
   const fields = [
     {
-      name: "email" as const,
-      label: "Email Address",
-      placeholder: "example@example.com",
-      defaultValue: searchParams.get("email") || "",
+      name: 'email' as const,
+      label: 'Email Address',
+      placeholder: 'example@example.com',
+      defaultValue: searchParams.get('email') || '',
     },
     {
-      name: "password" as const,
-      label: "Password",
-      placeholder: "Password",
-      type: "password",
-      defaultValue: "",
+      name: 'password' as const,
+      label: 'Password',
+      placeholder: 'Password',
+      type: 'password',
+      defaultValue: '',
     },
   ];
 
@@ -78,7 +81,7 @@ const LogInPage = () => {
     formState: { errors: formErrors, isSubmitting },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    mode: "onBlur",
+    mode: 'onBlur',
   });
 
   return (
@@ -89,7 +92,7 @@ const LogInPage = () => {
         password
       </p>
       <SuccessMessage>{message}</SuccessMessage>
-      <ErrorMessage>{queryStringError}</ErrorMessage>
+      <ErrorMessage>{serverError}</ErrorMessage>
       <form className="mx-auto w-full" onSubmit={handleSubmit(onSubmit)}>
         <fieldset className="fieldset w-full">
           {
@@ -109,7 +112,7 @@ const LogInPage = () => {
         </fieldset>
 
         <button className="btn btn-primary mt-5" disabled={isSubmitting}>
-          Log In{" "}
+          Log In{' '}
           {isSubmitting && (
             <span className="loading loading-spinner loading-xs"></span>
           )}

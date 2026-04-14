@@ -12,26 +12,14 @@ export async function login(req: Request, res: Response): Promise<void> {
   const user = await prisma.user.findUnique({ where: { email } });
   // If not then give a generic error message
   if (!user) {
-    const loginUrl = new URL(`${process.env.REACT_URL}/login` || '/');
-    loginUrl.searchParams.set('error', 'Incorrect Username or Password.');
-    loginUrl.searchParams.set('email', email);
-    loginUrl.searchParams.set('client_id', client_id);
-    loginUrl.searchParams.set('redirect_uri', redirect_uri);
-    loginUrl.searchParams.set('state', state);
-    res.redirect(loginUrl.toString());
+    res.status(400).send({ message: 'Incorrect Username or Password.' });
     return;
   }
   // If we have a user then check the password
   const passwordOk = await argon2.verify(user.passwordHash, password);
   // If that's not okay then give the same error message
   if (!passwordOk) {
-    const loginUrl = new URL(`${process.env.REACT_URL}/login` || '/');
-    loginUrl.searchParams.set('error', 'Incorrect Username or Password.');
-    loginUrl.searchParams.set('email', email);
-    loginUrl.searchParams.set('client_id', client_id);
-    loginUrl.searchParams.set('redirect_uri', redirect_uri);
-    state && loginUrl.searchParams.set('state', state);
-    res.redirect(loginUrl.toString());
+    res.status(400).send({ message: 'Incorrect Username or Password.' });
     return;
   }
   // If the username and password are okay then we can create a session
@@ -59,7 +47,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     });
     // Check the redirect uri (and whether we have a client)
     if (!client || client.redirectUri !== redirect_uri) {
-      res.status(400).send('Invalid Client.');
+      res.status(400).send({ message: 'Invalid Client.' });
       return;
     }
     // If that is all correct then generate a code
@@ -79,7 +67,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     // Add the state if there is one
     state && url.searchParams.set('state', state);
     // Then redirect
-    res.redirect(url.toString());
+    res.status(200).send({ redirectTo: url.toString() });
     return;
   }
 
