@@ -1,7 +1,13 @@
 import express, { type Request, type Response } from 'express';
 // Grab the functions from the users controller
-import { create as createUser } from '../controllers/userController.js';
-import { authorize, login, token } from '../controllers/authController.js';
+import { create as createUser, me } from '../controllers/userController.js';
+import {
+  authorize,
+  login,
+  logout,
+  token,
+  userinfo,
+} from '../controllers/authController.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -10,9 +16,13 @@ const router = express.Router({ mergeParams: true });
 
 // Add the controllers for our users
 router.post('/api/users', createUser);
+router.get(['/api/me', '/me'], me);
+// Add our auth controllers
 router.post(['/api/login', '/login'], login);
 router.get(['/api/authorize', '/authorize'], authorize);
 router.post(['/api/token', '/token'], token);
+router.post(['/api/logout', '/logout'], logout);
+router.get(['/api/userinfo', '/userinfo'], userinfo);
 
 // Get our built client directory
 const __filename = fileURLToPath(import.meta.url);

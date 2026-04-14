@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren } from 'react';
 
 const SuccessMessage = ({ children }: PropsWithChildren) => {
   return (

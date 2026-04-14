@@ -1,5 +1,5 @@
-import classNames from "classnames";
-import type { FieldError, UseFormRegisterReturn } from "react-hook-form";
+import classNames from 'classnames';
+import type { FieldError, UseFormRegisterReturn } from 'react-hook-form';
 
 type TextInputProps = {
   label: string;
@@ -13,8 +13,8 @@ type TextInputProps = {
 // This is used for rendering input fields on our forms and allows for registration with react hook forms
 export default function TextInput({
   label,
-  type = "text",
-  defaultValue = "",
+  type = 'text',
+  defaultValue = '',
   placeholder,
   registration,
   error,
@@ -31,8 +31,8 @@ export default function TextInput({
         type={type}
         defaultValue={defaultValue}
         placeholder={placeholder}
-        className={classNames("input w-full", {
-          "input-error": error,
+        className={classNames('input w-full', {
+          'input-error': error,
         })}
         {...registration}
       />

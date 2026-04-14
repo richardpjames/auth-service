@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { prisma } from '../db/prisma.js';
 import argon2 from 'argon2';
 import crypto from 'node:crypto';
-import { SignJWT } from 'jose';
+import { SignJWT, jwtVerify } from 'jose';
 
 export async function login(req: Request, res: Response): Promise<void> {
   // This function is simpler than some of the others, so using a z schema is overkill
@@ -115,7 +115,7 @@ export async function authorize(req: Request, res: Response) {
 
   var session = null;
   // Get the session key from the users cookie and look it up from the database
-  const sessionKey = req.cookies.auth_sid;
+  const sessionKey = req.cookies.auth_sessionId;
   // No lookup if the key is not present
   if (sessionKey) {
     session = await prisma.authSession.findUnique({
@@ -211,14 +211,25 @@ export async function token(req: Request, res: Response): Promise<void> {
     data: { usedAt: new Date() },
   });
 
-  const accessToken = crypto.randomBytes(32).toString('hex');
+  const secret = new TextEncoder().encode(process.env.TOKEN_SECRET);
+
+  const accessToken = await new SignJWT({
+    sub: authCode.user.id,
+    email: authCode.user.email,
+    name: authCode.user.displayName,
+    scope: 'openid',
+  })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuer(process.env.TOKEN_ISSUER!)
+    .setAudience(client_id)
+    .setIssuedAt()
+    .setExpirationTime('15m')
+    .sign(secret);
 
   if (!process.env.TOKEN_ISSUER || !process.env.TOKEN_SECRET) {
     res.status(500).send({ message: 'Internal Server Error' });
     return;
   }
-
-  const secret = new TextEncoder().encode(process.env.TOKEN_SECRET);
 
   const idToken = await new SignJWT({
     sub: authCode.user.id,
@@ -238,4 +249,81 @@ export async function token(req: Request, res: Response): Promise<void> {
     expires_in: 900,
     id_token: idToken,
   });
+}
+
+export async function logout(req: Request, res: Response): Promise<void> {
+  // Get the session key from the cookie
+  const sessionKey = req.cookies.auth_sessionId;
+
+  // If one is set (the user is loggged in) then delete the session
+  if (sessionKey) {
+    await prisma.authSession.deleteMany({
+      where: {
+        sessionKey,
+      },
+    });
+  }
+
+  // Clear the users cookie
+  res.clearCookie('auth_sessionId', {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    secure: process.env.NODE_ENV === 'production',
+  });
+
+  // Respond to the client
+  res.status(200).json({
+    message: 'Logged out successfully',
+  });
+}
+
+export async function userinfo(req: Request, res: Response): Promise<void> {
+  // Take the bearer token from the header
+  const authorization = req.header('authorization');
+
+  // If one is not present then send a message back
+  if (!authorization || !authorization.startsWith('Bearer ')) {
+    res.status(401).json({ message: 'Missing bearer token' });
+    return;
+  }
+
+  // Trim the token from the wider header
+  const accessToken = authorization.slice('Bearer '.length).trim();
+
+  // If no access to the token secret or issuer then send an error (should be in .env)
+  if (!process.env.TOKEN_SECRET || !process.env.TOKEN_ISSUER) {
+    res.status(500).json({ message: 'Internal Server Error' });
+    return;
+  }
+
+  // Try and decode the the token and send the user if we can
+  try {
+    const secret = new TextEncoder().encode(process.env.TOKEN_SECRET);
+    const { payload } = await jwtVerify(accessToken, secret, {
+      issuer: process.env.TOKEN_ISSUER,
+    });
+    // Otherwise get the user from the session key
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        admin: true,
+        createdAt: true,
+        updatedAt: true,
+        disabledAt: true,
+      },
+    });
+    // If we can't find the user then there is an issue with the access token
+    if (!user) {
+      res.status(401).json({ message: 'Invalid or expired access token' });
+    }
+    // Otherwise send the user back
+    res.status(200).json(user);
+    // If it could not be decoded then send back an error
+  } catch {
+    res.status(401).json({ message: 'Invalid or expired access token' });
+  }
 }
