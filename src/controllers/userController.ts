@@ -27,7 +27,7 @@ export async function create(
 
   if (!parsedBody.success) {
     res.status(400).json({
-      message: 'Invalid request body',
+      message: 'Please check your inputs and try again',
       errors: z.flattenError(parsedBody.error).fieldErrors,
     });
     return;

@@ -1,6 +1,6 @@
 // Start with using express for our web server
-import express from 'express';
-import type { Request, Response } from 'express';
+import express, { type Request, type Response } from 'express';
+import cookieParser from 'cookie-parser';
 // Read configuration from .env files
 import 'dotenv/config';
 // Helmet is used to secure the application
@@ -15,6 +15,8 @@ const app = express();
 app.use(helmet());
 // Allow the ingestion of json
 app.use(express.json());
+// Allow working with cookies
+app.use(cookieParser());
 
 // Add our application routes
 app.use(router);

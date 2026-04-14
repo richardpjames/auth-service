@@ -12,11 +12,54 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id           String        @id @default(cuid())
+  email        String        @unique
   passwordHash String
   displayName  String
-  createdAt    DateTime  @default(now())
+  admin        Boolean       @default(false)
+  createdAt    DateTime      @default(now())
   disabledAt   DateTime?
-  updatedAt    DateTime  @updatedAt
+  updatedAt    DateTime      @updatedAt
+  authSessions AuthSession[]
+  authCodes    AuthCode[]
+}
+
+model AuthSession {
+  id         String   @id @default(cuid())
+  sessionKey String   @unique
+  userId     String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model ClientApp {
+  id           String @id @default(cuid())
+  clientId     String @unique
+  clientSecret String
+  name         String
+  redirectUri  String
+
+  codes AuthCode[]
+}
+
+model AuthCode {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  userId      String
+  clientAppId String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientApp ClientApp @relation(fields: [clientAppId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([clientAppId])
+  @@index([expiresAt])
 }
