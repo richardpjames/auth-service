@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { prisma } from '../db/prisma.js';
 import argon2 from 'argon2';
 import crypto from 'node:crypto';
+import { SignJWT } from 'jose';
 
 export async function login(req: Request, res: Response): Promise<void> {
   // This function is simpler than some of the others, so using a z schema is overkill
@@ -153,4 +154,82 @@ export async function authorize(req: Request, res: Response) {
 
   // Perform the redirect
   res.redirect(redirect.toString());
+}
+
+export async function token(req: Request, res: Response): Promise<void> {
+  const { grant_type, code, client_id, client_secret, redirect_uri } = req.body;
+
+  if (grant_type !== 'authorization_code') {
+    res.status(400).json({ message: 'Unsupported Grant Type' });
+    return;
+  }
+
+  // Find the client from the request
+  const client = await prisma.clientApp.findUnique({
+    where: { clientId: client_id },
+  });
+
+  // If there was no client, or the secret and uri don't match up
+  if (
+    !client ||
+    client.clientSecret !== client_secret ||
+    client.redirectUri !== redirect_uri
+  ) {
+    res.status(401).json({ message: 'Invalid Client' });
+    return;
+  }
+
+  // Next get the auth code so that we can check
+  const authCode = await prisma.authCode.findUnique({
+    where: { code },
+    include: {
+      user: true,
+      clientApp: true,
+    },
+  });
+
+  // Make checks that the code exists, has not yet been used, has not expired and belongs to the right client
+  if (
+    !authCode ||
+    authCode.usedAt ||
+    authCode.expiresAt.getTime() < Date.now() ||
+    authCode.clientApp.clientId !== client_id
+  ) {
+    res.status(400).json({ message: 'Invalid Grant' });
+    return;
+  }
+
+  // Update the auth code so that we know it has expired
+  await prisma.authCode.update({
+    where: { id: authCode.id },
+    data: { usedAt: new Date() },
+  });
+
+  const accessToken = crypto.randomBytes(32).toString('hex');
+
+  if (!process.env.TOKEN_ISSUER || !process.env.TOKEN_SECRET) {
+    res.status(500).send({ message: 'Internal Server Error' });
+    return;
+  }
+
+  const secret = new TextEncoder().encode(process.env.TOKEN_SECRET);
+
+  const idToken = await new SignJWT({
+    sub: authCode.user.id,
+    email: authCode.user.email,
+    name: authCode.user.displayName,
+  })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuer(process.env.TOKEN_ISSUER)
+    .setAudience(client_id)
+    .setIssuedAt()
+    .setExpirationTime('15m')
+    .sign(secret);
+
+  res.json({
+    access_token: accessToken,
+    token_type: 'Bearer',
+    expires_in: 900,
+    id_token: idToken,
+  });
 }
