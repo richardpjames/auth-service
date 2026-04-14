@@ -211,30 +211,29 @@ export async function token(req: Request, res: Response): Promise<void> {
     data: { usedAt: new Date() },
   });
 
-  const secret = new TextEncoder().encode(process.env.TOKEN_SECRET);
-
-  const accessToken = await new SignJWT({
-    sub: authCode.user.id,
-    email: authCode.user.email,
-    name: authCode.user.displayName,
-    scope: 'openid',
-  })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuer(process.env.TOKEN_ISSUER!)
-    .setAudience(client_id)
-    .setIssuedAt()
-    .setExpirationTime('15m')
-    .sign(secret);
-
   if (!process.env.TOKEN_ISSUER || !process.env.TOKEN_SECRET) {
     res.status(500).send({ message: 'Internal Server Error' });
     return;
   }
 
+  const secret = new TextEncoder().encode(process.env.TOKEN_SECRET);
+
+  const accessToken = await new SignJWT({
+    sub: authCode.user.id,
+    scope: 'openid',
+  })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuer(process.env.TOKEN_ISSUER)
+    .setAudience(client_id)
+    .setIssuedAt()
+    .setExpirationTime('15m')
+    .sign(secret);
+
   const idToken = await new SignJWT({
     sub: authCode.user.id,
     email: authCode.user.email,
     name: authCode.user.displayName,
+    admin: authCode.user.admin,
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuer(process.env.TOKEN_ISSUER)
