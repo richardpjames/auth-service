@@ -17,7 +17,7 @@ router.post(['/api/token', '/token'], token);
 // Get our built client directory
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const clientDistPath = path.join(__dirname, '../../client/dist');
+const clientDistPath = path.join(__dirname, '../../../web/dist');
 // This is our static data path as well
 router.use(express.static(clientDistPath));
 

@@ -46,5 +46,6 @@ jobs:
             . "$NVM_DIR/nvm.sh"
             nvm use 25
             cd /home/richard/auth-service-api
-            npm run deploy
+            npm run prisma:generate
+            npm run prisma:deploy
             pm2 restart auth-service-api

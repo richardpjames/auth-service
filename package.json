@@ -1,41 +1,25 @@
 {
-  "name": "auth-service-api",
-  "version": "1.0.0",
-  "description": "",
-  "license": "ISC",
-  "author": "",
-  "type": "module",
-  "main": "dist/index.js",
+  "name": "auth-service",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev:client": "npm --prefix client run dev",
-    "dev:server": "prisma generate && tsx watch server/index.ts",
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "build:client": "npm --prefix client run build",
-    "build:server": "prisma generate && tsc -p tsconfig.json",
-    "build": "npm run build:client && npm run build:server",
-    "deploy": "prisma migrate deploy",
-    "start": "node dist/index.js"
-  },
-  "dependencies": {
-    "@prisma/adapter-pg": "^7.7.0",
-    "@prisma/client": "^7.7.0",
-    "argon2": "^0.44.0",
-    "cookie-parser": "^1.4.7",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "helmet": "^8.1.0",
-    "jose": "^6.2.2",
-    "prisma": "^7.7.0",
-    "zod": "^4.3.6"
+    "dev": "concurrently \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",
+    "dev:api": "npm run dev -w apps/api",
+    "dev:web": "npm run dev -w apps/web",
+    "build": "npm run build -w apps/api && npm run build -w apps/web",
+    "build:api": "npm run build -w apps/api",
+    "build:web": "npm run build -w apps/web",
+    "prisma:generate": "npm run prisma:generate -w apps/api",
+    "prisma:deploy": "npm run prisma:deploy -w apps/api",
+    "start": "npm run start -w apps/api",
+    "format": "prettier . --write"
   },
   "devDependencies": {
-    "@types/cookie-parser": "^1.4.10",
-    "@types/express": "^5.0.6",
-    "@types/node": "^25.6.0",
     "concurrently": "^9.2.1",
     "prettier": "^3.8.2",
-    "tsx": "^4.21.0",
     "typescript": "^6.0.2"
   }
 }
