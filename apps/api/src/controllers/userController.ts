@@ -19,7 +19,7 @@ const createUserSchema = z.object({
 // Create the type from the z schema above
 type CreateUserBody = z.infer<typeof createUserSchema>;
 
-export async function create(
+export async function createUser(
   req: Request<{}, {}, CreateUserBody>,
   res: Response,
 ): Promise<void> {
@@ -38,7 +38,7 @@ export async function create(
 
   // Check whether there is an existing user in the database
   const existingUser = await prisma.user.findUnique({
-    where: { email },
+    where: { email: email.toLowerCase() },
   });
 
   // If there is then return an error message to the user
@@ -55,7 +55,7 @@ export async function create(
   // Creates the user in the databse and returns the users basic details
   const user = await prisma.user.create({
     data: {
-      email,
+      email: email.toLowerCase(),
       passwordHash,
       displayName,
     },
@@ -73,6 +73,13 @@ export async function create(
     message: 'User created successfully',
     user,
   });
+}
+
+export async function getAllUsers(req: Request, res: Response) {
+  // This is sat behind middleware which restricts to admin users, so we can just return everything
+  const users = await prisma.user.findMany();
+  // Now return the users
+  res.status(200).json(users);
 }
 
 export async function me(req: Request, res: Response): Promise<void> {

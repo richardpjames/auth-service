@@ -15,7 +15,7 @@ const LoggedIn = lazy(() => import('./LoggedIn.tsx'));
 const Logout = lazy(() => import('./Logout.tsx'));
 const AdminHome = lazy(() => import('./AdminHome.tsx'));
 const AdminUsers = lazy(() => import('./AdminUsers.tsx'));
-const AdminClients = lazy(() => import('./AdminClients.tsx'));
+const AdminClientApps = lazy(() => import('./AdminClientApps.tsx'));
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -35,7 +35,7 @@ createRoot(document.getElementById('root')!).render(
             <Route element={<AdminLayout />}>
               <Route path="/admin" element={<AdminHome />} />
               <Route path="/admin/users" element={<AdminUsers />} />
-              <Route path="/admin/clients" element={<AdminClients />} />
+              <Route path="/admin/clientapps" element={<AdminClientApps />} />
             </Route>
           </Route>
         </Routes>

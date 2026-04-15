@@ -1,5 +1,7 @@
 @import 'tailwindcss';
-@plugin "daisyui";
+@plugin "daisyui" {
+  themes: lofi;
+}
 
 h1 {
   @apply text-5xl font-bold mb-5;

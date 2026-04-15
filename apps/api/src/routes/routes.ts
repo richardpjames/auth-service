@@ -1,6 +1,10 @@
 import express, { type Request, type Response } from 'express';
 // Grab the functions from the users controller
-import { create as createUser, me } from '../controllers/userController.js';
+import {
+  createUser as createUser,
+  getAllUsers,
+  me,
+} from '../controllers/userController.js';
 import {
   authorize,
   login,
@@ -10,14 +14,29 @@ import {
 } from '../controllers/authController.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAdmin, requireAuth } from '../middleware/auth.js';
+import {
+  createClientApp,
+  deleteClientApp,
+  getAllClientApps,
+} from '../controllers/clientAppController.js';
 
 // Create the router for us to plug in our controllers
 const router = express.Router({ mergeParams: true });
 
 // Add the controllers for our users
 router.post('/api/users', createUser);
+router.get('/api/users', requireAuth, requireAdmin, getAllUsers);
 router.get(['/api/me', '/me'], requireAuth, me);
+// Add the controllers for client apps
+router.get('/api/clientapps', requireAuth, requireAdmin, getAllClientApps);
+router.post('/api/clientapps', requireAuth, requireAdmin, createClientApp);
+router.delete(
+  '/api/clientapps/:id',
+  requireAuth,
+  requireAdmin,
+  deleteClientApp,
+);
 // Add our auth controllers
 router.post(['/api/login', '/login'], login);
 router.get(['/api/authorize', '/authorize'], authorize);

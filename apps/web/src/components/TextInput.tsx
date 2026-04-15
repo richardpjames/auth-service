@@ -15,7 +15,7 @@ export default function TextInput({
   label,
   type = 'text',
   defaultValue = '',
-  placeholder,
+  placeholder = '',
   registration,
   error,
 }: TextInputProps) {
@@ -36,7 +36,7 @@ export default function TextInput({
         })}
         {...registration}
       />
-      {error && <p className="label text-red-400 mb-0">{error.message}</p>}
+      {error && <p className="label text-red-400 mb-0!">{error.message}</p>}
     </>
   );
 }

@@ -55,6 +55,7 @@ const LogInPage = () => {
         client_id: searchParams.get('client_id'),
         redirect_uri: searchParams.get('redirect_uri'),
         state: searchParams.get('state'),
+        returnTo: searchParams.get('returnTo'),
       });
       // We have to do the redirection as a browser level action (not through the API)
       window.location.href = response.data.redirectTo;

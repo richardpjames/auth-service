@@ -5,7 +5,7 @@ const AdminLayout = () => {
   return (
     <>
       <NavBar />
-      <div className="flex h-screen flex-col max-w-5xl mx-auto">
+      <div className="flex min-h-screen flex-col max-w-5xl mx-auto">
         <div className="w-full mt-5 px-5">
           <Outlet />
         </div>

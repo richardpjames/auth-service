@@ -10,7 +10,9 @@ export async function login(req: Request, res: Response): Promise<void> {
   const { email, password, client_id, redirect_uri, state, returnTo } =
     req.body;
   // See if we have the user in our database
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({
+    where: { email: email.toLowerCase() },
+  });
   // If not then give a generic error message
   if (!user) {
     res.status(400).send({ message: 'Incorrect Username or Password.' });
@@ -79,7 +81,7 @@ export async function login(req: Request, res: Response): Promise<void> {
   }
   // If we have a returnTo parameter passed (from react) then we go back to that URL
   if (returnTo) {
-    redirectTo = returnTo;
+    redirectTo = `${process.env.REACT_URL}${returnTo}`;
   }
   // Return a success message and a simple redirect
   res.status(200).send({
