@@ -76,60 +76,6 @@ export async function create(
 }
 
 export async function me(req: Request, res: Response): Promise<void> {
-  // Get the session key from the users cookie
-  const sessionKey = req.cookies.auth_sessionId;
-
-  // If there is no key, then return and error to the user
-  if (!sessionKey) {
-    res.status(401).json({ message: 'Not authenticated' });
-    return;
-  }
-
-  // Otherwise get the user from the session key
-  const session = await prisma.authSession.findUnique({
-    where: { sessionKey },
-    include: {
-      user: {
-        select: {
-          id: true,
-          email: true,
-          displayName: true,
-          admin: true,
-          createdAt: true,
-          updatedAt: true,
-          disabledAt: true,
-        },
-      },
-    },
-  });
-
-  // If there is no session found (key is in the cookie but not the DB) then return an error
-  if (!session) {
-    res.status(401).json({ message: 'Not authenticated' });
-    return;
-  }
-
-  // If the session has expired then delete from the database and remove the users cookie
-  if (session.expiresAt.getTime() < Date.now()) {
-    await prisma.authSession.delete({
-      where: { id: session.id },
-    });
-
-    //clear the cookie
-    res.clearCookie('auth_sessionId', {
-      httpOnly: true,
-      sameSite: 'lax',
-      path: '/',
-      secure: process.env.NODE_ENV === 'production',
-    });
-
-    // Send the error message
-    res.status(401).json({ message: 'Session expired' });
-    return;
-  }
-
-  // Otherwise everything has worked, so we can return the user
-  res.status(200).json({
-    user: session.user,
-  });
+  // As this route is protected by the requireAuth middleware we can just return the user
+  res.status(200).json(req.user);
 }

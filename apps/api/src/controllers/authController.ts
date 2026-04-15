@@ -71,8 +71,16 @@ export async function login(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  // Return a success message
-  res.status(200).send({ message: 'Logged In.' });
+  // If there is no client, then we redirect to either the admin page, or back to the blog
+  var redirectTo = 'https://www.richardpjames.com';
+  if (user.admin) {
+    redirectTo = `${process.env.REACT_URL}/admin`;
+  }
+  // Return a success message and a simple redirect
+  res.status(200).send({
+    message: 'Logged In.',
+    redirectTo,
+  });
 }
 
 export async function authorize(req: Request, res: Response) {

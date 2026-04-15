@@ -3,7 +3,7 @@ import type { PropsWithChildren } from 'react';
 const ErrorMessage = ({ children }: PropsWithChildren) => {
   return (
     children && (
-      <div role="alert" className="alert alert-error my-3">
+      <div role="alert" className="alert alert-error mb-3">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           className="h-6 w-6 shrink-0 stroke-current"

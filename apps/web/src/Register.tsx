@@ -2,10 +2,11 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import axios from 'axios';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { z } from 'zod';
 import ErrorMessage from './components/ErrorMessage';
 import TextInput from './components/TextInput';
+import { useMe } from './hooks/useMe';
 
 const Register = () => {
   // Describe the valid format for a registration form (including validating passwords match)
@@ -36,6 +37,13 @@ const Register = () => {
   const navigate = useNavigate();
   // Used for getting query params
   const { search } = useLocation();
+  // Used for determining whether the user is logged in
+  const { user, isLoading } = useMe();
+
+  //Navigate away if there is a user
+  if (!isLoading && user) {
+    navigate('/loggedin');
+  }
 
   // The logic for handling the submit of the form
   const onSubmit = async (data: RegisterForm) => {
@@ -99,29 +107,23 @@ const Register = () => {
     mode: 'onBlur',
   });
 
+  if (isLoading) {
+    return <></>;
+  }
+
   return (
     <div className="flex flex-col">
-      {
-        // Introductory text
-      }
       <h1>Register</h1>
       <p>
         To sign up for a new account, please fill in the form below. You will
         log in using your email address, and this will give you access to all of
         the sites on richardpjames.com
       </p>
-      {
-        // Any generic error messages from the server
-      }
+
       <ErrorMessage>{serverError}</ErrorMessage>
-      {
-        // The registration form
-      }
+
       <form className="mx-auto w-full" onSubmit={handleSubmit(onSubmit)}>
-        <fieldset className="fieldset w-full">
-          {
-            // Loop through the list of fields and render them out
-          }
+        <fieldset className="fieldset">
           {fields.map(({ name, label, placeholder, type }) => (
             <TextInput
               key={name}
@@ -133,9 +135,7 @@ const Register = () => {
             />
           ))}
         </fieldset>
-        {
-          // Buttons for submitting and going to the login page
-        }
+
         <button className="btn btn-primary mt-5" disabled={isSubmitting}>
           Register{' '}
           {isSubmitting && (
