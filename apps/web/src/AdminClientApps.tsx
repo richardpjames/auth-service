@@ -82,7 +82,6 @@ const AdminClientApps = () => {
               <tr>
                 <th>Name</th>
                 <th>Client ID</th>
-                <th>Client Secret</th>
                 <th>Redirect URI</th>
                 <th></th>
               </tr>
@@ -93,7 +92,6 @@ const AdminClientApps = () => {
                   <tr key={clientApp.id}>
                     <td>{clientApp.name}</td>
                     <td>{clientApp.clientId}</td>
-                    <td>{clientApp.clientSecret}</td>
                     <td>{clientApp.redirectUri}</td>
                     <td>
                       <button

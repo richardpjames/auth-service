@@ -5,11 +5,11 @@ import crypto from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import {
   createOpaqueToken,
-  getAccessTokenAudience,
   hashToken,
   signAccessToken,
   signIdToken,
   verifyAccessToken,
+  verifyClientSecret,
 } from '../lib/auth.js';
 import { sanitizeReturnTo } from '../lib/url.js';
 
@@ -25,6 +25,11 @@ export async function login(req: Request, res: Response): Promise<void> {
   // If not then give a generic error message
   if (!user) {
     res.status(400).send({ message: 'Incorrect Username or Password.' });
+    return;
+  }
+  // Check if the user account is disabled
+  if (user.disabledAt) {
+    res.status(400).send({ message: 'This account has been disabled.' });
     return;
   }
   // If we have a user then check the password
@@ -163,6 +168,12 @@ export async function authorize(req: Request, res: Response) {
     return res.redirect(loginUrl.toString());
   }
 
+  // Check the user is not disabled
+  if (session.user.disabledAt) {
+    res.status(400).send({ message: 'This account is disabled' });
+    return;
+  }
+
   // Otherwise we create an auth code...
   const code = await prisma.authCode.create({
     data: {
@@ -209,7 +220,7 @@ export async function token(req: Request, res: Response): Promise<void> {
     // If there was no client, or the secret and uri don't match up
     if (
       !client ||
-      client.clientSecret !== client_secret ||
+      !verifyClientSecret(client_secret, client.clientSecret) ||
       client.redirectUri !== redirect_uri
     ) {
       res.status(401).json({ message: 'Invalid Client' });
@@ -288,7 +299,7 @@ export async function token(req: Request, res: Response): Promise<void> {
     });
 
     // If there is no client specified and the secret is missing then send a message
-    if (!client || client.clientSecret !== client_secret) {
+    if (!client || !verifyClientSecret(client_secret, client.clientSecret)) {
       res.status(401).json({ message: 'Invalid Client' });
       return;
     }
@@ -321,6 +332,11 @@ export async function token(req: Request, res: Response): Promise<void> {
         existingRefreshToken.expiresAt.getTime() < now.getTime() ||
         existingRefreshToken.clientApp.clientId !== client_id
       ) {
+        return null;
+      }
+
+      // If the user account has been disabled
+      if (existingRefreshToken.user.disabledAt) {
         return null;
       }
 
@@ -459,8 +475,18 @@ export async function userinfo(req: Request, res: Response): Promise<void> {
       res.status(401).json({ message: 'Invalid or expired access token' });
       return;
     }
-    // Otherwise send the user back
-    res.status(200).json(user);
+    // If the user account is disabled
+    if (user.disabledAt) {
+      res.status(401).json({ message: 'This account has been disabled' });
+      return;
+    }
+    // Otherwise send the user back in OIDC style
+    res.status(200).json({
+      sub: user.id,
+      name: user.displayName,
+      email: user.email,
+      email_verified: false,
+    });
     // If it could not be decoded then send back an error
   } catch {
     res.status(401).json({ message: 'Invalid or expired access token' });

@@ -77,7 +77,18 @@ export async function createUser(
 
 export async function getAllUsers(req: Request, res: Response) {
   // This is sat behind middleware which restricts to admin users, so we can just return everything
-  const users = await prisma.user.findMany();
+  const users = await prisma.user.findMany({
+    select: {
+      id: true,
+      email: true,
+      displayName: true,
+      admin: true,
+      createdAt: true,
+      updatedAt: true,
+      disabledAt: true,
+      passwordHash: false,
+    },
+  });
   // Now return the users
   res.status(200).json(users);
 }

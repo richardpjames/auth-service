@@ -90,7 +90,7 @@ export async function requireAuth(
 
   // If the session has been disabled, then similarly send an error
   if (session.user.disabledAt) {
-    res.status(403).json({ message: 'Account disabled' });
+    res.status(403).json({ message: 'This account has been disabled' });
     return;
   }
 

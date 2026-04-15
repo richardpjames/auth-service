@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { prisma } from '../db/prisma.js';
 import { z } from 'zod';
+import { hashClientSecret } from '../lib/auth.js';
 
 // Describe the valid format for a client app on creation
 const createClientAppSchema = z.object({
@@ -46,7 +47,7 @@ export async function createClientApp(
     data: {
       clientId: clientId.toLowerCase(),
       name,
-      clientSecret,
+      clientSecret: hashClientSecret(clientSecret),
       redirectUri,
     },
     // Get the data back
@@ -54,7 +55,7 @@ export async function createClientApp(
       id: true,
       name: true,
       clientId: true,
-      clientSecret: true,
+      clientSecret: false,
       redirectUri: true,
     },
   });
@@ -69,7 +70,14 @@ export async function getAllClientApps(
   res: Response,
 ): Promise<void> {
   // This is sat behind middleware which restricts to admin users, so we can just return everything
-  const clients = await prisma.clientApp.findMany();
+  const clients = await prisma.clientApp.findMany({
+    select: {
+      name: true,
+      clientId: true,
+      redirectUri: true,
+      clientSecret: false,
+    },
+  });
   // Now return the users
   res.status(200).json(clients);
   return;
