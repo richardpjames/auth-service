@@ -7,7 +7,8 @@ import { SignJWT, jwtVerify } from 'jose';
 export async function login(req: Request, res: Response): Promise<void> {
   // This function is simpler than some of the others, so using a z schema is overkill
   // Pull the data from the body and we'll validate it as we go
-  const { email, password, client_id, redirect_uri, state } = req.body;
+  const { email, password, client_id, redirect_uri, state, returnTo } =
+    req.body;
   // See if we have the user in our database
   const user = await prisma.user.findUnique({ where: { email } });
   // If not then give a generic error message
@@ -71,10 +72,14 @@ export async function login(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  // If there is no client, then we redirect to either the admin page, or back to the blog
+  // If there is no client, then we redirect to either the returnTo URL, the admin page, or back to the blog
   var redirectTo = 'https://www.richardpjames.com';
-  if (user.admin) {
+  if (!returnTo && user.admin) {
     redirectTo = `${process.env.REACT_URL}/admin`;
+  }
+  // If we have a returnTo parameter passed (from react) then we go back to that URL
+  if (returnTo) {
+    redirectTo = returnTo;
   }
   // Return a success message and a simple redirect
   res.status(200).send({
