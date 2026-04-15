@@ -10,6 +10,7 @@ import {
   signAccessToken,
   signIdToken,
 } from '../lib/auth.js';
+import { sanitizeReturnTo } from '../lib/url.js';
 
 export async function login(req: Request, res: Response): Promise<void> {
   // This function is simpler than some of the others, so using a z schema is overkill
@@ -88,7 +89,11 @@ export async function login(req: Request, res: Response): Promise<void> {
   }
   // If we have a returnTo parameter passed (from react) then we go back to that URL
   if (returnTo) {
-    redirectTo = `${process.env.REACT_URL}${returnTo}`;
+    const safeReturnTo = sanitizeReturnTo(
+      returnTo,
+      user.admin ? '/admin' : '/',
+    );
+    redirectTo = new URL(safeReturnTo, process.env.REACT_URL).toString();
   }
   // Return a success message and a simple redirect
   res.status(200).send({
@@ -236,8 +241,6 @@ export async function token(req: Request, res: Response): Promise<void> {
       data: { usedAt: new Date() },
     });
 
-    const secret = new TextEncoder().encode(process.env.TOKEN_SECRET);
-
     const accessToken = await signAccessToken({
       userId: authCode.user.id,
       scope: 'openid',
@@ -354,9 +357,6 @@ export async function token(req: Request, res: Response): Promise<void> {
       res.status(400).json({ message: 'Invalid Refresh Token' });
       return;
     }
-
-    // Generate a secret from the environment variable
-    const secret = new TextEncoder().encode(process.env.TOKEN_SECRET);
 
     // Create a new access token
     const accessToken = await signAccessToken({
