@@ -68,7 +68,7 @@ model AuthCode {
 
 model RefreshToken {
   id          String    @id @default(cuid())
-  token       String    @unique
+  tokenHash   String    @unique
   userId      String
   clientAppId String
   expiresAt   DateTime

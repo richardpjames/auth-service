@@ -3,7 +3,13 @@ import { prisma } from '../db/prisma.js';
 import argon2 from 'argon2';
 import crypto from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
-import { createOpaqueToken } from '../lib/auth.js';
+import {
+  createOpaqueToken,
+  getAccessTokenAudience,
+  hashToken,
+  signAccessToken,
+  signIdToken,
+} from '../lib/auth.js';
 
 export async function login(req: Request, res: Response): Promise<void> {
   // This function is simpler than some of the others, so using a z schema is overkill
@@ -76,7 +82,7 @@ export async function login(req: Request, res: Response): Promise<void> {
   }
 
   // If there is no client, then we redirect to either the returnTo URL, the admin page, or back to the blog
-  var redirectTo = 'https://www.richardpjames.com';
+  let redirectTo = 'https://www.richardpjames.com';
   if (!returnTo && user.admin) {
     redirectTo = `${process.env.REACT_URL}/admin`;
   }
@@ -182,12 +188,6 @@ export async function token(req: Request, res: Response): Promise<void> {
     refresh_token,
   } = req.body;
 
-  // Check that we have the token issuer and secret (for type safety later)
-  if (!process.env.TOKEN_ISSUER || !process.env.TOKEN_SECRET) {
-    res.status(500).send({ message: 'Internal Server Error' });
-    return;
-  }
-
   if (grant_type !== 'authorization_code' && grant_type !== 'refresh_token') {
     res.status(400).json({ message: 'Unsupported Grant Type' });
     return;
@@ -226,11 +226,6 @@ export async function token(req: Request, res: Response): Promise<void> {
       authCode.expiresAt.getTime() < Date.now() ||
       authCode.clientApp.clientId !== client_id
     ) {
-      if (authCode) {
-        console.log(authCode.usedAt);
-        console.log(authCode.expiresAt.getTime() < Date.now());
-        console.log(authCode.clientApp.clientId !== client_id);
-      }
       res.status(400).json({ message: 'Invalid Grant' });
       return;
     }
@@ -243,37 +238,27 @@ export async function token(req: Request, res: Response): Promise<void> {
 
     const secret = new TextEncoder().encode(process.env.TOKEN_SECRET);
 
-    const accessToken = await new SignJWT({
-      sub: authCode.user.id,
+    const accessToken = await signAccessToken({
+      userId: authCode.user.id,
       scope: 'openid',
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuer(process.env.TOKEN_ISSUER)
-      .setAudience('auth-service-api')
-      .setIssuedAt()
-      .setExpirationTime('15m')
-      .sign(secret);
+    });
 
-    const idToken = await new SignJWT({
-      sub: authCode.user.id,
+    const idToken = await signIdToken({
+      userId: authCode.user.id,
+      clientId: client_id,
       email: authCode.user.email,
-      name: authCode.user.displayName,
+      displayName: authCode.user.displayName,
       admin: authCode.user.admin,
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuer(process.env.TOKEN_ISSUER)
-      .setAudience(client_id)
-      .setIssuedAt()
-      .setExpirationTime('15m')
-      .sign(secret);
+    });
 
     // Generate a random token
     const refreshToken = createOpaqueToken();
+    const refreshTokenHash = hashToken(refreshToken);
 
     // Store it in the database
     await prisma.refreshToken.create({
       data: {
-        token: refreshToken,
+        tokenHash: refreshTokenHash,
         userId: authCode.user.id,
         clientAppId: client.id,
         // This adds 30 das
@@ -306,14 +291,18 @@ export async function token(req: Request, res: Response): Promise<void> {
 
     // Generate a new refresh token and calculate an expiry date in 30 days
     const rotatedRefreshToken = createOpaqueToken();
+    const rotatedRefreshTokenHash = hashToken(rotatedRefreshToken);
     const now = new Date();
     const refreshTokenExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    // Generate the hash for the provided token
+    const refreshTokenHash = hashToken(refresh_token);
 
     // Wrap our prisma work inside a transaction so that all logic is executed togehter
     const storedRefreshToken = await prisma.$transaction(async (tx) => {
       // tx is the transaction - we'll first find the existing token
       const existingRefreshToken = await tx.refreshToken.findUnique({
-        where: { token: refresh_token },
+        where: { tokenHash: refreshTokenHash },
         include: {
           user: true,
           clientApp: true,
@@ -349,7 +338,7 @@ export async function token(req: Request, res: Response): Promise<void> {
       // Then create the new refresh token
       await tx.refreshToken.create({
         data: {
-          token: rotatedRefreshToken,
+          tokenHash: rotatedRefreshTokenHash,
           userId: existingRefreshToken.user.id,
           clientAppId: existingRefreshToken.clientApp.id,
           expiresAt: refreshTokenExpiry,
@@ -370,30 +359,19 @@ export async function token(req: Request, res: Response): Promise<void> {
     const secret = new TextEncoder().encode(process.env.TOKEN_SECRET);
 
     // Create a new access token
-    const accessToken = await new SignJWT({
-      sub: storedRefreshToken.user.id,
+    const accessToken = await signAccessToken({
+      userId: storedRefreshToken.user.id,
       scope: 'openid',
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuer(process.env.TOKEN_ISSUER)
-      .setAudience('auth-service-api')
-      .setIssuedAt()
-      .setExpirationTime('15m')
-      .sign(secret);
+    });
 
-    // Create a new ID token
-    const idToken = await new SignJWT({
-      sub: storedRefreshToken.user.id,
+    // Create a new id token
+    const idToken = await signIdToken({
+      userId: storedRefreshToken.user.id,
+      clientId: client_id,
       email: storedRefreshToken.user.email,
-      name: storedRefreshToken.user.displayName,
+      displayName: storedRefreshToken.user.displayName,
       admin: storedRefreshToken.user.admin,
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuer(process.env.TOKEN_ISSUER)
-      .setAudience(client_id)
-      .setIssuedAt()
-      .setExpirationTime('15m')
-      .sign(secret);
+    });
 
     // Send back all of the tokens
     res.json({
@@ -470,7 +448,7 @@ export async function userinfo(req: Request, res: Response): Promise<void> {
     const secret = new TextEncoder().encode(process.env.TOKEN_SECRET);
     const { payload } = await jwtVerify(accessToken, secret, {
       issuer: process.env.TOKEN_ISSUER,
-      audience: 'auth-service-api',
+      audience: getAccessTokenAudience(),
     });
     // Otherwise get the user from the session key
     const user = await prisma.user.findUnique({
