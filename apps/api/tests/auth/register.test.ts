@@ -48,11 +48,42 @@ describe('register', () => {
     expect(response.status).toBe(400);
   });
 
-  it('rejects missing fields', async () => {
+  it('rejects missing email', async () => {
+    const response = await request(app).post('/api/users').send({
+      email: '',
+      password: 'supersecret123',
+      displayName: 'Test User',
+    });
+
+    expect(response.status).toBe(400);
+  });
+
+  it('rejects missing password', async () => {
     const response = await request(app).post('/api/users').send({
       email: 'test@example.com',
       password: '',
       displayName: 'Test User',
+    });
+
+    expect(response.status).toBe(400);
+  });
+
+  it('rejects missing display name', async () => {
+    const response = await request(app).post('/api/users').send({
+      email: 'test@example.com',
+      password: 'supersecret123',
+      displayName: '',
+    });
+
+    expect(response.status).toBe(400);
+  });
+
+  it('rejects very long display name', async () => {
+    const response = await request(app).post('/api/users').send({
+      email: 'test@example.com',
+      password: 'supersecret123',
+      displayName:
+        'testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest',
     });
 
     expect(response.status).toBe(400);
