@@ -21,12 +21,18 @@ import {
   forgottenPassword,
   resetPassword,
 } from '../controllers/passwordController.js';
+import {
+  forgotPasswordLimiter,
+  loginLimiter,
+  registerLimiter,
+  tokenLimiter,
+} from '../middleware/rateLimit.js';
 
 // Create the router for us to plug in our controllers
 const router = express.Router({ mergeParams: true });
 
 // Add the controllers for our users
-router.post('/api/users', createUser);
+router.post('/api/users', registerLimiter, createUser);
 router.get('/api/users', requireAuth, requireAdmin, getAllUsers);
 router.get(['/api/me', '/me'], requireAuth, me);
 // Add the controllers for client apps
@@ -39,12 +45,16 @@ router.delete(
   deleteClientApp,
 );
 // Add our auth controllers
-router.post(['/api/login', '/login'], login);
+router.post(['/api/login', '/login'], loginLimiter, login);
 router.get(['/api/authorize', '/authorize'], authorize);
-router.post(['/api/token', '/token'], token);
+router.post(['/api/token', '/token'], tokenLimiter, token);
 router.post(['/api/logout', '/logout'], requireAuth, logout);
 router.get(['/api/userinfo', '/userinfo'], userinfo);
-router.post(['/api/forgottenpassword'], forgottenPassword);
+router.post(
+  ['/api/forgottenpassword'],
+  forgotPasswordLimiter,
+  forgottenPassword,
+);
 router.post(['/api/resetpassword'], resetPassword);
 
 router.get('/.well-known/openid-configuration', openIdConfiguration);

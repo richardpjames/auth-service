@@ -5,16 +5,22 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 // Get our routes
 import router from './routes/routes.js';
+// Import our rate limiter
+import { globalLimiter } from './middleware/rateLimit.js';
 
 export function createApp(): Express {
   // Initialise the express app
   const app = express();
+  // This allows for correct IP addresses behind our prod nginx
+  app.set('trust proxy', 1);
   // Add helmet
   app.use(helmet());
   // Allow the ingestion of json
   app.use(express.json());
   // Allow working with cookies
   app.use(cookieParser());
+  // Provide global rate limiting
+  app.use(globalLimiter);
 
   // Add a simple health route
   app.get('/api/health', (req: Request, res: Response): void => {
