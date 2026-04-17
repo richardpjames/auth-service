@@ -43,6 +43,26 @@ async function authorizeForCode(
   return response;
 }
 
+async function loginForOauth(options: {
+  email: string;
+  password: string;
+  clientId: string;
+  redirectUri: string;
+  state?: string;
+  codeChallenge?: string;
+  codeChallengeMethod?: string;
+}) {
+  return request(app).post('/api/login').send({
+    email: options.email,
+    password: options.password,
+    client_id: options.clientId,
+    redirect_uri: options.redirectUri,
+    state: options.state ?? 'abc123',
+    code_challenge: options.codeChallenge,
+    code_challenge_method: options.codeChallengeMethod,
+  });
+}
+
 describe('oauth pkce flow', () => {
   beforeEach(async () => {
     await clearDb();
@@ -122,6 +142,80 @@ describe('oauth pkce flow', () => {
     expect(authorizeResponse.body.message).toBe(
       'PKCE is required for public clients',
     );
+  });
+
+  it('public client login flow without code_challenge fails', async () => {
+    await createTestUser({
+      email: 'pkce-user@example.com',
+      password: 'supersecret123',
+      displayName: 'PKCE User',
+    });
+
+    await createTestClientApp({
+      clientId: 'public-blog-client',
+      redirectUri: 'http://localhost:3001/callback',
+      name: 'Public Blog Client',
+      isPublic: true,
+    });
+
+    const loginResponse = await loginForOauth({
+      email: 'pkce-user@example.com',
+      password: 'supersecret123',
+      clientId: 'public-blog-client',
+      redirectUri: 'http://localhost:3001/callback',
+    });
+
+    expect(loginResponse.status).toBe(400);
+    expect(loginResponse.body.message).toBe(
+      'PKCE is required for public clients',
+    );
+  });
+
+  it('public client login flow with PKCE succeeds', async () => {
+    await createTestUser({
+      email: 'pkce-user@example.com',
+      password: 'supersecret123',
+      displayName: 'PKCE User',
+    });
+
+    await createTestClientApp({
+      clientId: 'public-blog-client',
+      redirectUri: 'http://localhost:3001/callback',
+      name: 'Public Blog Client',
+      isPublic: true,
+    });
+
+    const codeVerifier = 'public-login-verifier-1234567890';
+    const codeChallenge = createPkceCodeChallenge(codeVerifier);
+
+    const loginResponse = await loginForOauth({
+      email: 'pkce-user@example.com',
+      password: 'supersecret123',
+      clientId: 'public-blog-client',
+      redirectUri: 'http://localhost:3001/callback',
+      codeChallenge,
+      codeChallengeMethod: 'S256',
+    });
+
+    expect(loginResponse.status).toBe(200);
+    expect(loginResponse.body.redirectTo).toBeTruthy();
+
+    const code = new URL(loginResponse.body.redirectTo).searchParams.get('code');
+
+    expect(code).toBeTruthy();
+
+    const tokenResponse = await request(app).post('/api/token').send({
+      grant_type: 'authorization_code',
+      code,
+      client_id: 'public-blog-client',
+      redirect_uri: 'http://localhost:3001/callback',
+      code_verifier: codeVerifier,
+    });
+
+    expect(tokenResponse.status).toBe(200);
+    expect(tokenResponse.body.access_token).toBeTruthy();
+    expect(tokenResponse.body.id_token).toBeTruthy();
+    expect(tokenResponse.body.refresh_token).toBeTruthy();
   });
 
   it('public client with wrong code_verifier fails at /token', async () => {
@@ -242,6 +336,48 @@ describe('oauth pkce flow', () => {
     const code = new URL(authorizeResponse.headers.location).searchParams.get(
       'code',
     );
+
+    const tokenResponse = await request(app).post('/api/token').send({
+      grant_type: 'authorization_code',
+      code,
+      client_id: 'confidential-blog-client',
+      client_secret: 'super-client-secret',
+      redirect_uri: 'http://localhost:3001/callback',
+    });
+
+    expect(tokenResponse.status).toBe(200);
+    expect(tokenResponse.body.access_token).toBeTruthy();
+    expect(tokenResponse.body.id_token).toBeTruthy();
+    expect(tokenResponse.body.refresh_token).toBeTruthy();
+  });
+
+  it('confidential client login flow still succeeds without PKCE', async () => {
+    await createTestUser({
+      email: 'oauth-user@example.com',
+      password: 'supersecret123',
+      displayName: 'OAuth User',
+    });
+
+    await createTestClientApp({
+      clientId: 'confidential-blog-client',
+      clientSecret: 'super-client-secret',
+      redirectUri: 'http://localhost:3001/callback',
+      name: 'Confidential Blog Client',
+    });
+
+    const loginResponse = await loginForOauth({
+      email: 'oauth-user@example.com',
+      password: 'supersecret123',
+      clientId: 'confidential-blog-client',
+      redirectUri: 'http://localhost:3001/callback',
+    });
+
+    expect(loginResponse.status).toBe(200);
+    expect(loginResponse.body.redirectTo).toBeTruthy();
+
+    const code = new URL(loginResponse.body.redirectTo).searchParams.get('code');
+
+    expect(code).toBeTruthy();
 
     const tokenResponse = await request(app).post('/api/token').send({
       grant_type: 'authorization_code',

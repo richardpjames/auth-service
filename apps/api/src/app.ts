@@ -16,13 +16,13 @@ export function createApp(): Express {
   // Allow working with cookies
   app.use(cookieParser());
 
-  // Add our application routes
-  app.use(router);
-
   // Add a simple health route
   app.get('/api/health', (req: Request, res: Response): void => {
     res.send().status(200);
   });
+
+  // Add our application routes
+  app.use(router);
 
   return app;
 }

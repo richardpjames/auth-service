@@ -2,7 +2,6 @@ import type { Request, Response } from 'express';
 import { prisma } from '../db/prisma.js';
 import argon2 from 'argon2';
 import crypto from 'node:crypto';
-import { SignJWT, jwtVerify } from 'jose';
 import {
   createOpaqueToken,
   createPkceCodeChallenge,
@@ -19,8 +18,16 @@ import { Resend } from 'resend';
 export async function login(req: Request, res: Response): Promise<void> {
   // This function is simpler than some of the others, so using a z schema is overkill
   // Pull the data from the body and we'll validate it as we go
-  const { email, password, client_id, redirect_uri, state, returnTo } =
-    req.body;
+  const {
+    email,
+    password,
+    client_id,
+    redirect_uri,
+    state,
+    returnTo,
+    code_challenge,
+    code_challenge_method,
+  } = req.body;
   // See if we have the user in our database
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase() },
@@ -70,6 +77,14 @@ export async function login(req: Request, res: Response): Promise<void> {
       res.status(400).send({ message: 'Invalid Client.' });
       return;
     }
+    if (client.isPublic) {
+      if (!code_challenge || code_challenge_method !== 'S256') {
+        res
+          .status(400)
+          .send({ message: 'PKCE is required for public clients' });
+        return;
+      }
+    }
     // If that is all correct then generate a code
     const code = await prisma.authCode.create({
       data: {
@@ -78,6 +93,8 @@ export async function login(req: Request, res: Response): Promise<void> {
         clientAppId: client.id,
         // Create a date 5 minutes in the future
         expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+        codeChallenge: code_challenge ?? null,
+        codeChallengeMethod: code_challenge_method ?? null,
       },
     });
     // Redirect the user back to the requesting application
