@@ -11,8 +11,8 @@ import { globalLimiter } from './middleware/rateLimit.js';
 export function createApp(): Express {
   // Initialise the express app
   const app = express();
-  // This allows for correct IP addresses behind our prod nginx
-  app.set('trust proxy', 1);
+  // This allows for correct IP addresses behind our prod nginx and cloudflare
+  app.set('trust proxy', 2);
   // Add helmet
   app.use(helmet());
   // Allow the ingestion of json
