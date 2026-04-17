@@ -621,6 +621,10 @@ export async function resetPassword(
       where: { userId: existingResetToken.user.id, revokedAt: null },
       data: { revokedAt: new Date(Date.now()) },
     }),
+    prisma.authSession.updateMany({
+      where: { userId: existingResetToken.user.id },
+      data: { expiresAt: new Date(Date.now()) },
+    }),
   ]);
   // Return a 200 to the user
   res.status(200).send({ message: 'Password Updated.' });
