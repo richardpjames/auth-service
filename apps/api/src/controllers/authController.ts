@@ -595,12 +595,10 @@ export async function resetPassword(
     existingResetToken.expiresAt.getTime() < Date.now() ||
     existingResetToken.usedAt
   ) {
-    res
-      .status(400)
-      .send({
-        message:
-          'You have either reset your password already, or your request has expired. Please start again.',
-      });
+    res.status(400).send({
+      message:
+        'You have either reset your password already, or your request has expired. Please start again.',
+    });
     return;
   }
 
@@ -618,6 +616,10 @@ export async function resetPassword(
     prisma.passwordResetToken.update({
       where: { id: existingResetToken.id },
       data: { usedAt: now },
+    }),
+    prisma.refreshToken.updateMany({
+      where: { userId: existingResetToken.user.id, revokedAt: null },
+      data: { revokedAt: new Date(Date.now()) },
     }),
   ]);
   // Return a 200 to the user
