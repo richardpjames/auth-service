@@ -109,9 +109,8 @@ describe('POST /api/clientapps', () => {
 
     expect(response.status).toBe(400);
     expect(response.body.message).toBe(
-      'Please check your inputs and try again',
+      'Client must either be public, or provide a secret.',
     );
-    expect(response.body.errors.clientSecret).toBeTruthy();
   });
 
   it('rejects when redirectUri is not provided', async () => {

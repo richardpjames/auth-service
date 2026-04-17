@@ -40,24 +40,27 @@ model AuthSession {
 }
 
 model ClientApp {
-  id           String @id @default(cuid())
-  clientId     String @unique
-  clientSecret String
+  id           String  @id @default(cuid())
+  clientId     String  @unique
+  clientSecret String?
   name         String
   redirectUri  String
+  isPublic     Boolean @default(false)
 
   codes         AuthCode[]
   refreshTokens RefreshToken[]
 }
 
 model AuthCode {
-  id          String    @id @default(cuid())
-  code        String    @unique
-  userId      String
-  clientAppId String
-  expiresAt   DateTime
-  usedAt      DateTime?
-  createdAt   DateTime  @default(now())
+  id                  String    @id @default(cuid())
+  code                String    @unique
+  userId              String
+  clientAppId         String
+  expiresAt           DateTime
+  usedAt              DateTime?
+  createdAt           DateTime  @default(now())
+  codeChallenge       String?
+  codeChallengeMethod String?
 
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   clientApp ClientApp @relation(fields: [clientAppId], references: [id], onDelete: Cascade)

@@ -7,7 +7,8 @@ import { hashSecret } from '../lib/auth.js';
 const createClientAppSchema = z.object({
   name: z.string().min(1, 'Please provide a name'),
   clientId: z.string().min(1, 'Please provide a client id'),
-  clientSecret: z.string().min(1, 'Please provide a client secret'),
+  clientSecret: z.string().min(1, 'Please provide a client secret').optional(),
+  isPublic: z.boolean().optional(),
   redirectUri: z.url('Please provide a valid Redirect URI'),
 });
 
@@ -27,7 +28,23 @@ export async function createClientApp(
   }
 
   // Pull the data we need from the parsed body
-  const { name, clientId, clientSecret, redirectUri } = parsedBody.data;
+  const { name, clientId, clientSecret, redirectUri, isPublic } =
+    parsedBody.data;
+
+  // Must be either public or provide a secret
+  if (!isPublic && !clientSecret) {
+    res
+      .status(400)
+      .send({ message: 'Client must either be public, or provide a secret.' });
+    return;
+  }
+  // Reject when public client also has a secret (vice versa to the above)
+  if (isPublic && clientSecret) {
+    res
+      .status(400)
+      .send({ message: 'If public, please do not provide a client secret. ' });
+    return;
+  }
 
   // Check whether there is an existing client app in the database
   const existingClientApp = await prisma.clientApp.findUnique({
@@ -47,8 +64,9 @@ export async function createClientApp(
     data: {
       clientId: clientId.toLowerCase(),
       name,
-      clientSecret: hashSecret(clientSecret),
+      clientSecret: clientSecret && hashSecret(clientSecret),
       redirectUri,
+      isPublic,
     },
     // Get the data back
     select: {
@@ -57,6 +75,7 @@ export async function createClientApp(
       clientId: true,
       clientSecret: false,
       redirectUri: true,
+      isPublic: true,
     },
   });
 

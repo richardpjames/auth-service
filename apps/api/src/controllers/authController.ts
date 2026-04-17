@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import {
   createOpaqueToken,
+  createPkceCodeChallenge,
   hashSecret,
   hashToken,
   signAccessToken,
@@ -112,14 +113,23 @@ export async function login(req: Request, res: Response): Promise<void> {
 
 export async function authorize(req: Request, res: Response) {
   // Get all of the parameters we need from the query string as strings
-  const { client_id, redirect_uri, state, response_type, scope } =
-    req.query as {
-      client_id?: string;
-      redirect_uri?: string;
-      state?: string;
-      response_type?: string;
-      scope?: string;
-    };
+  const {
+    client_id,
+    redirect_uri,
+    state,
+    response_type,
+    scope,
+    code_challenge,
+    code_challenge_method,
+  } = req.query as {
+    client_id?: string;
+    redirect_uri?: string;
+    state?: string;
+    response_type?: string;
+    scope?: string;
+    code_challenge?: string;
+    code_challenge_method?: string;
+  };
 
   // We only support the code response type in this application
   if (response_type !== 'code') {
@@ -148,6 +158,14 @@ export async function authorize(req: Request, res: Response) {
     return res.status(400).send({ message: 'Invalid client' });
   }
 
+  // Check if the client is public and has provided a valid code challenge (and method)
+  if (client.isPublic) {
+    if (!code_challenge || code_challenge_method !== 'S256') {
+      return res
+        .status(400)
+        .send({ message: 'PKCE is required for public clients' });
+    }
+  }
   var session = null;
   // Get the session key from the users cookie and look it up from the database
   const sessionKey = req.cookies.auth_sessionId;
@@ -184,6 +202,8 @@ export async function authorize(req: Request, res: Response) {
       clientAppId: client.id,
       // Create a date/time 5 minutes from now
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      codeChallenge: code_challenge ?? null,
+      codeChallengeMethod: code_challenge_method ?? null,
     },
   });
 
@@ -205,6 +225,7 @@ export async function token(req: Request, res: Response): Promise<void> {
     client_secret,
     redirect_uri,
     refresh_token,
+    code_verifier,
   } = req.body;
 
   if (grant_type !== 'authorization_code' && grant_type !== 'refresh_token') {
@@ -220,10 +241,15 @@ export async function token(req: Request, res: Response): Promise<void> {
     });
 
     // If there was no client, or the secret and uri don't match up
+    if (!client || client.redirectUri !== redirect_uri) {
+      res.status(401).json({ message: 'Invalid Client' });
+      return;
+    }
+
+    // For clients with a secret, check that it exists and is valid
     if (
-      !client ||
-      !verifySecret(client_secret, client.clientSecret) ||
-      client.redirectUri !== redirect_uri
+      !client.isPublic &&
+      !verifySecret(client_secret, client.clientSecret!)
     ) {
       res.status(401).json({ message: 'Invalid Client' });
       return;
@@ -247,6 +273,27 @@ export async function token(req: Request, res: Response): Promise<void> {
     ) {
       res.status(400).json({ message: 'Invalid Grant' });
       return;
+    }
+
+    // If there is a code challenge stored against the auth code, then we must verify it
+    if (authCode.codeChallenge) {
+      if (!code_verifier) {
+        res.status(400).json({ message: 'Missing code_verifier' });
+        return;
+      }
+
+      if (authCode.codeChallengeMethod !== 'S256') {
+        res.status(400).json({ message: 'Unsupported code challenge method' });
+        return;
+      }
+
+      // Calculate the hash from the verifier (should match the original challenge)
+      const calculatedChallenge = createPkceCodeChallenge(code_verifier);
+
+      if (calculatedChallenge !== authCode.codeChallenge) {
+        res.status(400).json({ message: 'Invalid code_verifier' });
+        return;
+      }
     }
 
     // Update the auth code so that we know it has expired
@@ -301,7 +348,16 @@ export async function token(req: Request, res: Response): Promise<void> {
     });
 
     // If there is no client specified and the secret is missing then send a message
-    if (!client || !verifySecret(client_secret, client.clientSecret)) {
+    if (!client) {
+      res.status(401).json({ message: 'Invalid Client' });
+      return;
+    }
+
+    // For clients with a secret, check that it exists and is valid
+    if (
+      !client.isPublic &&
+      !verifySecret(client_secret, client.clientSecret!)
+    ) {
       res.status(401).json({ message: 'Invalid Client' });
       return;
     }

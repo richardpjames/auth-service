@@ -54,6 +54,11 @@ async function getVerifyKey() {
   return verifyKeyPromise;
 }
 
+// Create a pkce code challenge for the verifier type provided
+export function createPkceCodeChallenge(verifier: string): string {
+  return crypto.createHash('sha256').update(verifier).digest('base64url');
+}
+
 // This creates a random token used as a refresh token
 export function createOpaqueToken(bytes = 48): string {
   return crypto.randomBytes(bytes).toString('hex');
