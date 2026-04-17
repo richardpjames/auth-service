@@ -30,7 +30,11 @@ export const loginLimiter = rateLimit({
   max: Number(process.env.RATE_LIMIT_LOGIN_MAX) || 5,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => `${ipKeyGenerator(req.ip!)}:${getEmailKey(req)}`,
+  keyGenerator: (req) => {
+    const key = `${ipKeyGenerator(req.ip!)}:${getEmailKey(req)}`;
+    console.log(key);
+    return key;
+  },
   message: { message: 'Too many login attempts, please try again later.' },
 });
 
