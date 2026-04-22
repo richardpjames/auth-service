@@ -117,7 +117,7 @@ const Register = () => {
       <p>
         To sign up for a new account, please fill in the form below. You will
         log in using your email address, and this will give you access to all of
-        the sites on richardpjames.com
+        the sites on Coding After Hours.
       </p>
 
       <ErrorMessage>{serverError}</ErrorMessage>
